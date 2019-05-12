@@ -151,14 +151,14 @@ PRINT:	li 	$v0,4
 	
 DISPLAY_DIGITAL:
 	li	$t9, 10			# set t9 to 10 for certainty that it is 10 to divide 
-	div 	$t3,$t9			#lay so ky tu nhap duoc trong 1s chia cho 10 - this needs to be fixed because if the total letters are more than 100 then it will be wrong
-	mflo 	$t8			#luu gia tri phan nguyen, gia tri nay se duoc luu o den LED ben trai
+	div 	$t3,$t9			# divide by 10. If the total is >= 100 then it will be wrong
+	mflo 	$t8			# quotient at the left LED
 	la 	$s2,bytehex		# store the address of the array containing the values of 7 segment numbers
-	add 	$s2,$s2,$t8		#xac dinh dia chi cua gia tri 
-	lb 	$a0,0($s2)              #lay noi dung cho vao $a0           
-	jal   	SHOW_7SEG_LEFT       	# ngay den label den LED trai
+	add 	$s2,$s2,$t8		# get the correct address of the value we want
+	lb 	$a0,0($s2)              # get that value
+	jal   	SHOW_7SEG_LEFT       	# show it on Digital Lab
 #------------------------------------------------------------------------
-	mfhi 	$t7			#luu gia tri phan du cua phep chia, gia tri nay se duoc in ra trong den LED ben phai
+	mfhi 	$t7			# the right side similar with remainder
 	la 	$s2,bytehex			
 	add 	$s2,$s2,$t7
 	lb 	$a0,0($s2)              # set value for segments           
@@ -215,7 +215,7 @@ ASK_LOOP:
 	syscall
 	beq $a0,0,RESET_DATA		
 	nop
-	b EXIT
+	j EXIT
 RESET_DATA:	
 	li	$t3, 0			# reset corrected counter register
 	li	$v0, 32			# change back to sleep service due to strange bug
