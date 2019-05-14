@@ -8,6 +8,9 @@
 	                                # Auto clear after sw  
 
 .eqv MASK_CAUSE_KEYBOARD 0x0000034 	# Keyboard Cause
+.eqv SLEEP_TIME 500			# sleep time for custom sleep counter
+.eqv STR_LEN 24				# string length of the source string
+.eqv DIVIDER 10				# 10 is used to divide the total correct characters
   
 .data 
 LEDAscii     : .byte 63,6,91,79,102,109,125,7,127,111 # this is the decimal representation of numbers from 0 to 9 for 7 segments. 63 is 0 and 111 is 9 
@@ -30,7 +33,7 @@ startReadingKey: .asciiz "\n Start reading key. "
 	li   	$s1, DISPLAY_READY
 MAIN:         
 	li 	$s4,0 			# length of storestring later on
-	li 	$t9,10
+	li 	$t9,DIVIDER
 	
 	li 	$v0, 4
 	la 	$a0, startMain
@@ -60,7 +63,7 @@ SHOW_KEY:
 			
 CHECK:
 	addi	$s7, $s7, 1		# increase time by one
-	teqi	$s7, 500		# if finish 500ms get into interrupt
+	teqi	$s7, SLEEP_TIME		# if finish 500 get into interrupt
 SLEEP:  
 	addi    $v0,$zero,32            # sleep service, just to get back to loop, used to avoid some unpexpected bugs
 	li      $a0, 5              	# $a0 = sleep length, which is 5ms in this case         
@@ -108,7 +111,7 @@ END:	#PRINTING
 	nop
 	li 	$t1,0 			# $t1 - increment index when looping
 	li 	$t3,0                   # stores the number of correct characters
-	li 	$t8,24			# Length of the sourcestring.
+	li 	$t8,STR_LEN		# Length of the sourcestring.
 	beq 	$s4, 0, PRINT
 	nop
 	slt 	$t7,$s4,$t8		# We compare two lengths: sourcestring and storestring
@@ -145,7 +148,7 @@ PRINT:	li 	$v0,4
 	syscall
 	
 DISPLAY_DIGITAL:
-	li	$t9, 10			# set t9 to 10 for certainty that it is 10 to divide 
+	li	$t9, DIVIDER		# set t9 to 10 for certainty that it is 10 to divide 
 	div 	$t3,$t9			# divide by 10. If the total is >= 100 then it will be wrong
 	mflo 	$t8			# quotient at the left LED
 	la 	$s2,LEDAscii		# store the address of the array containing the values of 7 segment numbers
@@ -161,8 +164,9 @@ DISPLAY_DIGITAL:
 #------------------------------------------------------------------------                                            
 	li	$s6, 1			# turn on ask loop
 	
-	beq	$s4, 0, END_PROCESS
-	li 	$t3, 0
+	beq	$s4, 0, END_PROCESS	# if we have no storestring then we skip looping
+	nop
+	li 	$t3, 0			# used for index in small loop function
 	nop
 SMALL_LOOP:
 	li	$s6, 0			# used as a value to clean buffer
