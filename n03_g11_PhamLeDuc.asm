@@ -10,18 +10,18 @@
 .eqv MASK_CAUSE_KEYBOARD 0x0000034 	# Keyboard Cause
   
 .data 
-bytehex     : .byte 63,6,91,79,102,109,125,7,127,111 # this is the decimal representation of numbers from 0 to 9 for 7 segments. 63 is 0 and 111 is 9 
+LEDAscii     : .byte 63,6,91,79,102,109,125,7,127,111 # this is the decimal representation of numbers from 0 to 9 for 7 segments. 63 is 0 and 111 is 9 
 storestring : .space 1000			# maximum 25 words to store in this array
 stringsource : .asciiz "Bo mon ky thuat may tinh" 
-numkeyright: .asciiz  "\n The number of matched characters: "  
+numCorrectChar: .asciiz  "\n The number of matched characters: "  
 notification: .asciiz "\n Continue using or quit? "
 testing: .asciiz "\n length of the typed string: "
 string: .asciiz "\n String: "
-startmain: .asciiz "\n Start main. "
+startMain: .asciiz "\n Start main. "
 startReadingKey: .asciiz "\n Start reading key. "
-array: 	.word 10000
+
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
-# MAIN Procsciiz ciiz edure 
+# MAIN Procedure
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 .text
 	li   	$k0,  KEY_CODE              
@@ -29,11 +29,11 @@ array: 	.word 10000
 	li   	$s0, DISPLAY_CODE              
 	li   	$s1, DISPLAY_READY
 MAIN:         
-	li 	$s4,0 			# length cua storestring later on
+	li 	$s4,0 			# length of storestring later on
 	li 	$t9,10
 	
 	li 	$v0, 4
-	la 	$a0, startmain
+	la 	$a0, startMain
 	syscall
 	nop
 	
@@ -49,10 +49,7 @@ WAIT_FOR_KEY:
 	
 READ_KEY:  
 	lb   	$t0, 0($k0)            	# $t0 = [$k0] = KEY_CODE. Here we use lb for efficient data storage because ASCII only goes to 127 max, which is 8 bits
-#WAIT_FOR_DIS: 
-#	     lb   $t2, 0($s1)            	# $t2 = [$s1] = DISPLAY_READY. $s1 only has two values 0 or 1           
-#	     beq  $t2, $zero, WAIT_FOR_DIS	# if $t2 == 0 then Polling
-#	     nop                             
+                           
 SHOW_KEY: 
 	sb 	$t0, 0($s0)             # show the input key when key ready has a signal 1 on MMIO
 	la  	$s5,storestring		# the address of our input string is stored in $s5
@@ -64,20 +61,18 @@ SHOW_KEY:
 CHECK:
 	addi	$s7, $s7, 1		# increase time by one
 	teqi	$s7, 500		# if finish 500ms get into interrupt
-
 SLEEP:  
 	addi    $v0,$zero,32            # sleep service, just to get back to loop, used to avoid some unpexpected bugs
 	li      $a0, 5              	# $a0 = sleep length, which is 5ms in this case         
 	syscall         
-	nop           	          	# WARNING: nop is mandatory here.
-	#li 	$s4, 0			# reset count                    
+	nop           	          	# WARNING: nop is mandatory here.                   
 	j       LOOP          	 	# Loop
 	j	LOOP
 	
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# PHAN PHUC VU NGAT
+# INTERRUPT SERVICE
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
-.ktext    0x80000180         		#chuong trinh con chay sau khi interupt duoc goi.
+.ktext    0x80000180         		# this will always be called when it comes to interrupt.
 
 IntSR: 	#--------------------------------------------------------
 	# Temporary disable interrupt
@@ -111,25 +106,25 @@ END:	#PRINTING
 	li 	$a0,'\n'         	# new line
 	syscall 
 	nop
-	li 	$t1,0 			#dem so ky tu da duoc xet
-	li 	$t3,0                   # dem so ky tu nhap dung
-	li 	$t8,24			#luu $t8 la do dai xau da luu tru trong ma nguon.
+	li 	$t1,0 			# $t1 - increment index when looping
+	li 	$t3,0                   # stores the number of correct characters
+	li 	$t8,24			# Length of the sourcestring.
 	beq 	$s4, 0, PRINT
 	nop
-	slt 	$t7,$s4,$t8		#so sanh xem do dai xau nhap tu ban phim va do dai cua xau co dinh trong ma nguon
-					#xau nao nho hon thi duyet theo do dai cua xau do
-	bne 	$t7,1, CHECK_STRING		
+	slt 	$t7,$s4,$t8		# We compare two lengths: sourcestring and storestring
+					# We get the smaller length.
+	bne 	$t7,1, CHECK_STRING	# If $s4 > $t8 then we use $t8 as the length
 	nop
-	add 	$t8,$0,$s4
+	add 	$t8,$0,$s4		# If not we set $s4 as $t8, so we only need to use $t8 as our final length everytime
 	
 CHECK_STRING:				# when the original string has a greater length
 	la 	$t2,storestring		# handle the typed string
 	add 	$t2,$t2,$t1
-	lb 	$t5,0($t2)		#lay ky tu thu $t1 trong storestring luu vao $t5 de so sanh voi ky tu thu $t1 o stringsource
+	lb 	$t5,0($t2)		# The character index i of storestring will be compared with the character at index i of sourcestring
 	
 	la 	$t4,stringsource	# handle the source string
 	add 	$t4,$t4,$t1
-	lb 	$t6,0($t4)		#lay ky tu thu $t1 trong stringsource luu vao $t6
+	lb 	$t6,0($t4)		# extract the character of source string at index i
 	
 	bne 	$t6, $t5, CONTINUE	# if they are not similar then we skip increment of corrected characters
 	
@@ -139,9 +134,9 @@ CONTINUE:
 	addi 	$t1,$t1,1		# increase i to continue looping 
 	beq 	$t1,$t8,PRINT		# if i reach the length of the string we are looping then we stop
 	nop
-	j 	CHECK_STRING		#con khong thi tiep tuc xet tiep cac ky tu 
+	j 	CHECK_STRING		# Continue checking if we havent finished
 PRINT:	li 	$v0,4
-	la 	$a0,numkeyright
+	la 	$a0,numCorrectChar
 	syscall
 	
 	li 	$v0,1
@@ -153,13 +148,13 @@ DISPLAY_DIGITAL:
 	li	$t9, 10			# set t9 to 10 for certainty that it is 10 to divide 
 	div 	$t3,$t9			# divide by 10. If the total is >= 100 then it will be wrong
 	mflo 	$t8			# quotient at the left LED
-	la 	$s2,bytehex		# store the address of the array containing the values of 7 segment numbers
+	la 	$s2,LEDAscii		# store the address of the array containing the values of 7 segment numbers
 	add 	$s2,$s2,$t8		# get the correct address of the value we want
 	lb 	$a0,0($s2)              # get that value
 	jal   	SHOW_7SEG_LEFT       	# show it on Digital Lab
 #------------------------------------------------------------------------
 	mfhi 	$t7			# the right side similar with remainder
-	la 	$s2,bytehex			
+	la 	$s2,LEDAscii			
 	add 	$s2,$s2,$t7
 	lb 	$a0,0($s2)              # set value for segments           
 	jal  	SHOW_7SEG_RIGHT      	# show    
@@ -206,7 +201,7 @@ NEXT_PC:
         nop
         
 RETURN:   
-	eret                       	# tro ve len ke tiep cua chuong trinh chinh
+	eret                       	# return to the next instruction after interrupt
 	nop
 
 ASK_LOOP: 
